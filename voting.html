@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Global</title>
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+    body {
+      background:#fff;
+      display:flex;
+      flex-direction:column;
+      height:100vh;
+      overflow:hidden;
+    }
+    h2 {
+      font-weight:800;
+      padding:10px;
+      font-size:20px;
+    }
+    #chat-box {
+      flex:1;
+      overflow-y:auto;
+      padding:10px;
+    }
+    .msg {
+      margin-bottom:10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:#f7f7f7;
+      border-radius:10px;
+      padding:5px 8px;
+    }
+    .nama {
+      font-weight:700;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      border-radius:20px;
+      padding:2px 8px;
+      font-size:14px;
+    }
+    .gradasi {
+      background:linear-gradient(90deg,#ff5f5f,#ff9e40);
+      color:white;
+    }
+    .pesan {
+      margin-left:4px;
+      font-size:15px;
+      word-break:break-word;
+    }
+    .verified, .vip {
+      width:15px;
+      height:15px;
+    }
+    #hapus-btn {
+      background:none;
+      border:none;
+      color:#ff4040;
+      font-size:16px;
+      cursor:pointer;
+      margin-left:10px;
+    }
+    #hapus-btn:hover {opacity:0.7;}
+
+    #input-area {
+      display:flex;
+      flex-direction:column;
+      background:#fff;
+      border-top:1px solid #000;
+      padding:8px;
+      position:fixed;
+      bottom:0;
+      left:0;
+      width:100%;
+    }
+    #input-area input {
+      border:2px solid #000;
+      border-radius:10px;
+      padding:8px;
+      font-size:16px;
+      width:100%;
+      margin-bottom:5px;
+    }
+    #input-row {
+      display:flex;
+      width:100%;
+      gap:5px;
+    }
+    #pesan {
+      flex:1;
+    }
+    button {
+      background:#0050ff;
+      color:#fff;
+      border:none;
+      border-radius:10px;
+      padding:8px 15px;
+      font-weight:bold;
+      font-size:16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>CHAT GLOBAL</h2>
+  <div id="chat-box"></div>
+
+  <div id="input-area">
+    <input type="text" id="nama" placeholder="Nama kamu..." />
+    <div id="input-row">
+      <input type="text" id="pesan" placeholder="Ketik pesan..." />
+      <button id="kirimBtn">KIRIM</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDcs07CTDdmbmeVFJdRMWdQik88dFlDWOc",
+      authDomain: "gdjdjdj.firebaseapp.com",
+      projectId: "gdjdjdj",
+      storageBucket: "gdjdjdj.firebasestorage.app",
+      messagingSenderId: "300888275351",
+      appId: "1:300888275351:web:399b7e4daaf6b3b61e6cd2",
+      measurementId: "G-6P90X4NWEV"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // daftar khusus
+    const verifiedUsers = ["RIFQY"];
+    const vipUsers = ["RIFQY"];
+    const gradientUsers = ["RIFQY"];
+
+    const chatBox = document.getElementById("chat-box");
+    const namaInput = document.getElementById("nama");
+    const pesanInput = document.getElementById("pesan");
+    const kirimBtn = document.getElementById("kirimBtn");
+
+    const savedNama = localStorage.getItem("namaUser");
+    if (savedNama) {
+      namaInput.value = savedNama;
+      namaInput.disabled = true;
+    }
+
+    namaInput.addEventListener("change", () => {
+      const v = namaInput.value.trim();
+      if (v) {
+        localStorage.setItem("namaUser", v);
+        namaInput.disabled = true;
+      }
+    });
+
+    kirimBtn.addEventListener("click", kirimPesan);
+    pesanInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        kirimPesan();
+      }
+    });
+
+    function kirimPesan() {
+      const nama = namaInput.value.trim();
+      const pesan = pesanInput.value.trim();
+      if (!nama || !pesan) return;
+      push(ref(db, "chat"), { nama, pesan });
+      pesanInput.value = "";
+    }
+
+    onChildAdded(ref(db, "chat"), (snapshot) => {
+      const val = snapshot.val();
+      const key = snapshot.key;
+      const div = document.createElement("div");
+      div.classList.add("msg");
+
+      // bagian kiri (nama + pesan)
+      const leftDiv = document.createElement("div");
+
+      const namaSpan = document.createElement("span");
+      namaSpan.classList.add("nama");
+      if (gradientUsers.includes(val.nama)) namaSpan.classList.add("gradasi");
+      namaSpan.textContent = val.nama;
+
+      if (verifiedUsers.includes(val.nama)) {
+        const img = document.createElement("img");
+        img.src = "https://i.ibb.co.com/N2K5gLqQ/New-Project-276-69805-AA.png";
+        img.className = "verified";
+        namaSpan.appendChild(img);
+      }
+      if (vipUsers.includes(val.nama)) {
+        const img2 = document.createElement("img");
+        img2.src = "https://i.ibb.co.com/ZphnxWgN/New-Project-276-3-C56-DDB.png";
+        img2.className = "vip";
+        namaSpan.appendChild(img2);
+      }
+
+      const pesanDiv = document.createElement("div");
+      pesanDiv.classList.add("pesan");
+      pesanDiv.textContent = val.pesan;
+
+      leftDiv.appendChild(namaSpan);
+      leftDiv.appendChild(pesanDiv);
+
+      div.appendChild(leftDiv);
+
+      // tombol hapus hanya untuk pesan sendiri
+      const myName = localStorage.getItem("namaUser");
+      if (myName && myName === val.nama) {
+        const hapusBtn = document.createElement("button");
+        hapusBtn.id = "hapus-btn";
+        hapusBtn.textContent = "🗑️";
+        hapusBtn.onclick = () => {
+          if (confirm("Hapus pesan ini?")) {
+            remove(ref(db, "chat/" + key));
+            div.remove();
+          }
+        };
+        div.appendChild(hapusBtn);
+      }
+
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  </script>
+</body>
+</html>
