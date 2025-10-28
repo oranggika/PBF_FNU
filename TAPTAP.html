@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TapTap Global</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 10px;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+
+    #tapButton {
+      font-size: 24px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 80%;
+      background-color: #f00;
+      color: white;
+      border: none;
+      border-radius: 10px;
+    }
+
+    #leaderboard {
+      margin-top: 30px;
+      text-align: left;
+      padding: 10px;
+      background: #222;
+      border-radius: 10px;
+    }
+
+    .score-item {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+
+    .verified {
+      width: 18px;
+      vertical-align: middle;
+      margin-left: 5px;
+    }
+
+    input, button {
+      font-size: 18px;
+      margin: 5px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>TAP-TAP GAME</h2>
+  <input type="text" id="nicknameInput" placeholder="Masukkan Nickname"><br>
+  <button onclick="startGame()">Mulai Game</button>
+  <p id="timer">Timer: 100</p>
+  <p id="tapCount">Tap: 0</p>
+  <button id="tapButton" onclick="tap()" disabled>TAP!</button>
+  <button onclick="resetGame()">Main Lagi</button>
+
+  <div id="leaderboard">
+    <h3>
+      Leaderboard 
+      <span id="daysRemaining" style="font-size:14px; font-weight:normal; color:#ccc;"></span>
+    </h3>
+    <div id="leaderboardList">Loading...</div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAsg1WX6lmRGNAzJP5VsCi77ZDl9VhmmVI",
+      authDomain: "ticta-aa921.firebaseapp.com",
+      databaseURL: "https://ticta-aa921-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ticta-aa921",
+      storageBucket: "ticta-aa921.appspot.com",
+      messagingSenderId: "182885633906",
+      appId: "1:182885633906:web:ce36293451af16e46e17eb",
+      measurementId: "G-F5LGBTGS5C"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const resetRef = db.ref("taptap_reset");
+
+    let timer = 100;
+    let tapCount = 0;
+    let countdown;
+    let verifiedUsers = ["luminUX","TASK HIVE","Pokeh","Gracin lovee","RIFQY"];
+    const verifiedIcon = "https://i.ibb.co.com/svkjJ7bd/New-Project-61-549-A46-E.png";
+
+    // Simpan nickname lokal
+    document.getElementById("nicknameInput").addEventListener("input", function() {
+      localStorage.setItem("nickname", this.value.trim());
+    });
+
+    function startGame() {
+      tapCount = 0;
+      document.getElementById("tapCount").innerText = "Tap: 0";
+      timer = 100;
+      document.getElementById("timer").innerText = "Timer: 60";
+      document.getElementById("tapButton").disabled = false;
+
+      countdown = setInterval(() => {
+        timer--;
+        document.getElementById("timer").innerText = "Timer: " + timer;
+        if (timer <= 0) {
+          clearInterval(countdown);
+          document.getElementById("tapButton").disabled = true;
+          checkLeaderboard();
+        }
+      }, 1000);
+    }
+
+    function tap() {
+      if (timer > 0) {
+        tapCount++;
+        document.getElementById("tapCount").innerText = "Tap: " + tapCount;
+      }
+    }
+
+    function resetGame() {
+      tapCount = 0;
+      timer = 100;
+      document.getElementById("tapCount").innerText = "Tap: 0";
+      document.getElementById("timer").innerText = "Timer: 60";
+      document.getElementById("tapButton").disabled = true;
+    }
+
+    function checkLeaderboard() {
+      const nickname = document.getElementById("nicknameInput").value.trim();
+      if (!nickname) return alert("Masukkan nickname!");
+
+      const scoresRef = db.ref("taptap_scores");
+      scoresRef.once("value").then(snapshot => {
+        let scores = [];
+        snapshot.forEach(child => {
+          scores.push({ nickname: child.key, tapCount: child.val() });
+        });
+
+        scores.sort((a, b) => b.tapCount - a.tapCount);
+
+        const isInLeaderboard = scores.some(s => s.nickname === nickname);
+        const topScore = scores.length > 0 ? scores[0].tapCount : 0;
+
+        if (scores.length < 10 || tapCount > topScore || !isInLeaderboard) {
+          db.ref("taptap_scores/" + nickname).set(tapCount);
+        }
+
+        showLeaderboard();
+      });
+    }
+
+    function showLeaderboard() {
+      const leaderboardDiv = document.getElementById("leaderboardList");
+      db.ref("taptap_scores").once("value").then(snapshot => {
+        let scores = [];
+        snapshot.forEach(child => {
+          scores.push({ nickname: child.key, tapCount: child.val() });
+        });
+
+        scores.sort((a, b) => b.tapCount - a.tapCount);
+        leaderboardDiv.innerHTML = "";
+
+        scores.slice(0, 10).forEach((score, index) => {
+          const isVerified = verifiedUsers.includes(score.nickname);
+          leaderboardDiv.innerHTML += `
+            <div class="score-item">
+              <strong>${index + 1}.</strong>
+              <span class="nickname">${score.nickname}</span>
+              ${isVerified ? `<img src="${verifiedIcon}" class="verified">` : ""}
+              - <span class="taps">${score.tapCount} TAP</span>
+            </div>
+          `;
+        });
+
+        if (scores.length === 0) {
+          leaderboardDiv.innerHTML = "<i>Belum ada skor di leaderboard</i>";
+        }
+      });
+    }
+
+    function initializeResetDate() {
+      resetRef.once("value").then(snapshot => {
+        if (!snapshot.exists()) {
+          const now = new Date();
+          const resetDate = new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000);
+          resetRef.set({ resetDate: resetDate.toISOString() });
+        }
+      });
+    }
+
+    function listenToResetDate() {
+      resetRef.on("value", snapshot => {
+        if (snapshot.exists()) {
+          const resetDate = new Date(snapshot.val().resetDate);
+          const now = new Date();
+          const diff = resetDate - now;
+          const remainingDays = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+
+          document.getElementById("daysRemaining").innerText = `(${remainingDays} hari tersisa)`;
+
+          if (diff <= 0) {
+            db.ref("taptap_scores").remove();
+            const newReset = new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000);
+            resetRef.set({ resetDate: newReset.toISOString() });
+            showLeaderboard();
+          }
+        }
+      });
+    }
+
+    // Saat halaman dimuat
+    window.onload = () => {
+      const savedName = localStorage.getItem("nickname");
+      if (savedName) {
+        document.getElementById("nicknameInput").value = savedName;
+      }
+      initializeResetDate();
+      listenToResetDate();
+      showLeaderboard();
+    };
+  </script>
+</body>
+</html>
+<p>jika anda ingin centang verifikasi anda harus membeli,di shop memggunakan coin</p>
